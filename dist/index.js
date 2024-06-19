@@ -8,54 +8,61 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const discord_js_1 = require("discord.js");
+const express_1 = __importDefault(require("express"));
+const multer_1 = __importDefault(require("multer"));
 require("dotenv/config");
+const node_fs_1 = __importDefault(require("node:fs"));
+const node_path_1 = __importDefault(require("node:path"));
+const discord_js_1 = require("discord.js");
 const webhookClient = new discord_js_1.WebhookClient({ url: process.env.WEBHOOK_URL });
-const embed = new discord_js_1.EmbedBuilder()
-    .setTitle("Some Title")
-    .setColor(0x00ffff)
-    .setImage("https://i.imgur.com/AfFp7pu.png");
-const send = webhookClient.send({
-    content: "Webhook test",
-    username: "some-username",
-    avatarURL: "https://i.imgur.com/AfFp7pu.png",
-    embeds: [embed],
+const app = (0, express_1.default)();
+// Multer configuration for handling file uploads
+const storage = multer_1.default.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, "./uploads");
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname);
+    },
 });
-let messageId = "";
-send
-    .then((response) => __awaiter(void 0, void 0, void 0, function* () {
-    messageId = response.id;
-    const message = yield webhookClient.fetchMessage(messageId);
-    console.log(message.embeds[0].image);
-}))
-    .catch((error) => console.log(error));
-console.log(messageId);
-// import axios from "axios";
-// import dotenv from "dotenv";
-// dotenv.config();
-// // Define the webhook URL
-// const webhookUrl = process.env.WEBHOOK_URL_HERE!;
-// // Data to be sent in the POST request
-// const data = {
-//   content: "Hello, this is a webhook message!",
-//   username: "Amer Bot",
-//   avatar: 'https://i.imgur.com/8J7X0lU.png',
-//   embeds: [
-//     {
-//       image: {
-//         url: `https://i.imgur.com/8J7X0lU.png`
-//       }
-//     }
-//   ]
-// };
-// // Send the POST request
-// axios
-//   .post(`${webhookUrl}?wait=true`, data)
-//   .then((response: any) => {
-//     console.log("Webhook POST request successful!");
-//     console.log(response.data);
-//   })
-//   .catch((error: any) => {
-//     console.error("Error:", error);
-//   });
+const upload = (0, multer_1.default)({ storage: storage });
+app.post("/upload", upload.single("image"), function (req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c;
+        // Read the image file
+        const imageData = node_fs_1.default.readFileSync((_a = req.file) === null || _a === void 0 ? void 0 : _a.path);
+        console.log((_b = req.file) === null || _b === void 0 ? void 0 : _b.path.replace(`\/`, "/"));
+        // Create a message attachment with the image
+        const attachment = new discord_js_1.AttachmentBuilder((_c = req.file) === null || _c === void 0 ? void 0 : _c.path.replace(/\\/g, "/"));
+        const send = yield webhookClient.send({
+            content: "Webhook test",
+            username: "some-username",
+            avatarURL: "https://i.imgur.com/AfFp7pu.png",
+            files: [attachment],
+        });
+        console.log(send);
+        res.send(send);
+    });
+});
+// app.post("/upload", upload.single("image"), async function (req, res) {
+//   // Read the image file
+//   const imageData = fs.readFileSync(req.file?.path!);
+//   const base64Image = Buffer.from(imageData).toString('base64');
+//   fs.unlinkSync(req.file?.path!)
+//   // Remove header from base64 string
+//   const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+//   // Save DataUri to Database
+//   // Send back the image data as data URI
+//   res.status(200).send({ imageDataURI: `data:image/png;base64,${base64Data}` });
+// });
+// Endpoint to serve the image
+app.get('/image/:imageName', (req, res) => {
+    const { imageName } = req.params;
+    const imagePath = node_path_1.default.join(__dirname, 'uploads', imageName);
+    res.sendFile(imagePath);
+});
+app.listen(3000);
